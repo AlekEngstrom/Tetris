@@ -17,18 +17,32 @@ def click(x,y):# clicks the mouse at x, y
 def press(x):# preses "x"
     pyautogui.press(x)
 
-def moveTo(rotate, x):# rotates the piece and moves it assuming left most spot is 0
+def findHoles(board):
+    holes = 0
+    for i in range(len(board)-1):
+        for j in range(len(board[i])-1):
+            print(i)
+            if(board[i][j] == 0):
+                if(i != 0) & (i != 9) & (j < 10):
+                    if(board[i-1][j] != 0) & (board[i+1][j] != 0) & (board[i][j+1] != 0):
+                        holes += 1
+    return holes
+
+def moveTo(rotate, x, letter):# rotates the piece and moves it assuming left most spot is 0
     print(rotate)
     print(x)
     
+    
+    if(4-x >= 0):
+        for i in range(4-x):
+            press('left')
+            sleep(.1)
+    else:
+        for i in range(x-4):
+            press('right')
+            sleep(.1)
     for i in range(rotate):
         press('up')
-        sleep(.1)
-    for i in range(7):
-        press('left')
-        
-    for i in range(x-1):
-        press('right')
         sleep(.1)
     sleep(.1)
     press('space')
@@ -244,7 +258,7 @@ def placePiece(letter, x, rotation, board, new): #places piece of letter at x an
                         board[y+1][x] = new
                         board[y][x-1] = new
                         return y
-        if(rotation == 1 or rotation == 3):#face right
+        if(rotation == 1):#face right
             for y in range(0,19):
                 if(y > maxy[x]) &  (y-1 > maxy[x+1]):
                     if((y != 0) & (x != 10) & (board[y][x] != 1) & (board[y+1][x] != 1) & (board[y][x+1] != 1) & (board[y-1][x+1] != 1)):
@@ -252,7 +266,8 @@ def placePiece(letter, x, rotation, board, new): #places piece of letter at x an
                         board[y+1][x] = new
                         board[y][x+1] = new
                         board[y-1][x+1] = new
-                        return y
+                        if(rotation == 1):
+                            return y                    
     if(letter == 'Z'):
         if(rotation == 0 or rotation == 2):#face up
             for y in range(0,19):
@@ -264,7 +279,7 @@ def placePiece(letter, x, rotation, board, new): #places piece of letter at x an
                             board[y+1][x] = new
                             board[y+1][x-1] = new
                             return y
-        if(rotation == 1 or rotation == 3):#face right
+        if(rotation == 3):#face right
             for y in range(0,19):
                 if(y > maxy[x]) & (y-1> maxy[x-1]):
                     if((y != 0) & (x != 10) & (x != 0) & (board[y][x] != 1) & (board[y+1][x] != 1) & (board[y][x-1] != 1) & (board[y-1][x-1] != 1)):
@@ -279,27 +294,22 @@ def findSpot(letter, board):# finds best spot for piece
     low = 20
     lowx = 0
     lowr = 0
-    for r in range(4):
+    for r in range(4): #checks all possible spots
         for x in range(0,9):
-            
-            above = False #make sure piece isnt placed below another one
-            if(placePiece(letter, x, r, board, 2) < low):
-                
-                for y in range(placePiece(letter, x, r, board, 2)-1, 20):
-                    if(board[y][x] == 1):
-                        above = True
-                if(not above):
-                    low = placePiece(letter, x, r, board, 2)
+            holes = findHoles(board)
+            temp = placePiece(letter, x, r, board, 2)
+            holes -= findHoles(board)
+            holes = abs(holes)
+            temp += holes
+            if(temp < low):#find lowest y and places piece
+                    low = temp
                     lowx = x
                     lowr = r
             placePiece(letter, x, r, board, 0)
     placePiece(letter, lowx, lowr, board, 1)
 
-    if (letter == 'O'):
-        moveTo(lowr, lowx+1)
-    else:
-        moveTo(lowr, lowx)
-    #replaceRow(board)
+    moveTo(lowr, lowx, letter)
+    replaceRow(board)
 
 def initialize():
     Board = np.zeros((20, 10))
@@ -323,7 +333,7 @@ def initialize():
 def startGame(board):
     i=0
     letter = ''
-    while i < 5:
+    while i < 10:
         if letter != '':
             time.sleep(1)
             newletter = locatePiece()
