@@ -7,7 +7,8 @@ import random
 import win32api, win32con
 import numpy as np
 import cv2
-#RECORD 64 lines score 40842
+import copy
+#RECORD 96 lines score 83786
 
 Held = ""
 
@@ -306,34 +307,40 @@ def placePiece(letter, x, rotation, board, new): #places piece of letter at x an
 
 def findHoles(board, maxy): #finds holes **wells and overhanging edges**
     holes = 0
+    holeWeight = 10
+    wellWeight = 3
     for i in range(maxy + 4):
         for j in range(len(board[i])):
             if(board[i][j] == 0):
                 if(j != 0) & (j != 9):
                     if(board[i][j-1] != 0) & (board[i][j+1] != 0) & (board[i+1][j] != 0):
-                        holes += 3
+                        holes += holeWeight
                     elif(board[i+1][j] != 0):
-                        holes += 3
+                        holes += holeWeight
                     elif((board[i+1][j] == 0) & (board[i-1][j] == 0) & 
                     (board[i-1][j-1] != 0) & (board[i+1][j-1] != 0) & (board[i][j-1] != 0) & 
                     (board[i-1][j+1] != 0) & (board[i+1][j+1] != 0) & (board[i][j+1] != 0)):
-                        holes += 1
+                        holes += wellWeight
                 elif(j == 0):
                     if(board[i][j+1] != 0) & (board[i+1][j] != 0):
-                        holes += 3
+                        holes += holeWeight
                     elif(board[i+1][j] != 0):
-                         holes += 3
+                         holes += holeWeight
                     elif((board[i+1][j] == 0) & (board[i-1][j] == 0) & 
                     (board[i-1][j+1] != 0) & (board[i+1][j+1] != 0) & (board[i][j+1] != 0)):
-                        holes += 1
+                        holes += wellWeight
                 elif(j == 9):
                     if(board[i][j-1] != 0) & (board[i+1][j] != 0):
-                        holes += 3
+                        holes += holeWeight
                     elif(board[i+1][j] != 0):
-                        holes += 3
+                        holes += holeWeight
+    #replaceRow(board)
+    #for i in range(len(board)):
+    #    if(board[i][9]!= 0):
+    #        holes += 1
     return holes
 
-def findSpot(letter, board):# finds best spot for piece
+def findSpotHelper(letter, board):
     low = 20
     lowx = 0
     lowr = 0
@@ -356,9 +363,31 @@ def findSpot(letter, board):# finds best spot for piece
                     lowx = x
                     lowr = r
             placePiece(letter, x, r, board, 0)
-    placePiece(letter, lowx, lowr, board, 1)
+    return(low, lowx, lowr)
 
-    moveTo(lowr, lowx, letter)
+def findSpot(letter,nextLetter, board):# finds best spot for piece
+    global Held
+    low, lowx, lowr = findSpotHelper(letter, board)
+    low1 = 100
+
+    if(Held == ""):
+        low1, lowx1, lowr1 = findSpotHelper(nextLetter, board)
+    else:
+        low1, lowx1, lowr1 = findSpotHelper(Held, board)
+
+    if(low <= low1):
+        placePiece(letter, lowx, lowr, board, 1)
+        moveTo(lowr, lowx, letter)
+
+    else:
+        press("C")
+        if(Held != ""):
+            placePiece(Held, lowx1, lowr1, board, 1)
+            moveTo(lowr1, lowx1, Held)
+        Held = letter
+
+
+
     replaceRow(board)
 
 def initialize():
@@ -386,7 +415,7 @@ def startGame(board):
                 temp = locatePiece()
                 print(count)
                 count += 1
-            findSpot(letter,board)
+            findSpot(letter,temp,board)
             i+=1
             letter = temp
             print(board[::-1])
