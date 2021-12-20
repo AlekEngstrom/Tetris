@@ -21,9 +21,7 @@ def press(x):# preses "x"
     pyautogui.press(x)
 
 def moveTo(rotate, x, letter):# rotates the piece and moves it assuming left most spot is 0
-    print(rotate)
-    print(x)
-    duration = 0.0001
+    duration = 0.0
     
     for i in range(rotate):
         press('up')
@@ -40,62 +38,39 @@ def moveTo(rotate, x, letter):# rotates the piece and moves it assuming left mos
     sleep(duration)
     press('space')
 
-def findHoles(board): #finds holes **wells and overhanging edges**
-    holes = 0
-    for i in range(len(board)-1):
-        for j in range(len(board[i])):
-            if(board[i][j] == 0):
-                if(j != 0) & (j != 9):
-                    if(board[i][j-1] != 0) & (board[i][j+1] != 0) & (board[i+1][j] != 0):
-                        holes += 3
-                    elif(board[i+1][j] != 0):
-                        holes += 3
-                    elif((board[i+1][j] == 0) & (board[i-1][j] == 0) & 
-                    (board[i-1][j-1] != 0) & (board[i+1][j-1] != 0) & (board[i][j-1] != 0) & 
-                    (board[i-1][j+1] != 0) & (board[i+1][j+1] != 0) & (board[i][j+1] != 0)):
-                        holes += 1
-                elif(j == 0):
-                    if(board[i][j+1] != 0) & (board[i+1][j] != 0):
-                        holes += 3
-                    elif(board[i+1][j] != 0):
-                         holes += 3
-                    elif((board[i+1][j] == 0) & (board[i-1][j] == 0) & 
-                    (board[i-1][j+1] != 0) & (board[i+1][j+1] != 0) & (board[i][j+1] != 0)):
-                        holes += 1
-                elif(j == 9):
-                    if(board[i][j-1] != 0) & (board[i+1][j] != 0):
-                        holes += 3
-                    elif(board[i+1][j] != 0):
-                        holes += 3
-    return holes
-
 def locatePiece():# Returns the next piece
     x,y = pyautogui.size()
     #if pyautogui.locateOnScreen('square.png', region=(1100,200,200,300), grayscale = True, confidence = 1)!= None:
-    if pyautogui.locateOnScreen('O.png', region=(1100,250,200,300))!= None :
+    if pyautogui.locateOnScreen('O.png', region=(1100,430,200,100))!= None :
         print("I can see square!")
         return 'O'
-    elif pyautogui.locateOnScreen('I.png', region=(1100,250,200,300))!= None:
+    elif pyautogui.locateOnScreen('I.png', region=(1100,430,200,100))!= None:
         print("I can see I!")
         return 'I'
-    elif pyautogui.locateOnScreen('L.png', region=(1100,250,200,300))!= None:
+    elif pyautogui.locateOnScreen('L.png', region=(1100,430,200,100))!= None:
         print("I can see L!")
         return 'L'
-    elif pyautogui.locateOnScreen('S.png', region=(1100,250,200,300))!= None:
+    elif pyautogui.locateOnScreen('S.png', region=(1100,430,200,100))!= None:
         print("I can see S!")
         return 'S'
-    elif pyautogui.locateOnScreen('T.png', region=(1100,250,200,300))!= None:
+    elif pyautogui.locateOnScreen('T.png', region=(1100,430,200,100))!= None:
         print("I can see T!")
         return 'T'
-    elif pyautogui.locateOnScreen('Z.png', region=(1100,250,200,300))!= None:
-        print("I can see ReverseS!")
+    elif pyautogui.locateOnScreen('Z.png', region=(1100,430,200,100))!= None:
+        print("I can see Z!")
         return 'Z'
-    elif pyautogui.locateOnScreen('J.png', region=(1100,250,200,300))!= None:
-        print("I can see ReverseL!")
+    elif pyautogui.locateOnScreen('J.png', region=(1100,430,200,100))!= None:
+        print("I can see J!")
         return 'J'
+    elif pyautogui.locateOnScreen('paused.png', region=(850,500,200,100), grayscale = True)!= None :
+        print("You paused me :(")
+        return 'E'
+    elif pyautogui.locateOnScreen('game_over.png', region=(850,500,200,100), grayscale = True)!= None :
+        print("I Lost :(")
+        return 'E'
     else:
         print("I cant see anything!")
-        return ''
+        return locatePiece()
 
 def replaceRow(board):# if a row has all 1s then it deletes it and moves everything down
     temp = np.zeros(10)
@@ -119,15 +94,18 @@ def replaceRow(board):# if a row has all 1s then it deletes it and moves everyth
             board[i] = board[i+1]
         replaceRow(board)
 
-def placePiece(letter, x, rotation, board, new): #places piece of letter at x and rotation r with 'new' value and returns the y of highest piece placed
-
-    #gets the heighest y that has a piece on it
+def getYs(board): #gets the heighest y that has a piece on it
     maxy = [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1] 
     for i in range(10):
         for y in reversed(range(len(board))):
             if(board[y][i] == 1):
                 maxy[i] = y
                 break
+    return maxy
+
+def placePiece(letter, x, rotation, board, new): #places piece of letter at x and rotation r with 'new' value and returns the y of highest piece placed
+    
+    maxy = getYs(board)
 
     if(letter == 'T'):
         if(rotation == 0):#face up
@@ -326,17 +304,47 @@ def placePiece(letter, x, rotation, board, new): #places piece of letter at x an
                             return y+1
     return 20
 
+def findHoles(board, maxy): #finds holes **wells and overhanging edges**
+    holes = 0
+    for i in range(maxy + 4):
+        for j in range(len(board[i])):
+            if(board[i][j] == 0):
+                if(j != 0) & (j != 9):
+                    if(board[i][j-1] != 0) & (board[i][j+1] != 0) & (board[i+1][j] != 0):
+                        holes += 3
+                    elif(board[i+1][j] != 0):
+                        holes += 3
+                    elif((board[i+1][j] == 0) & (board[i-1][j] == 0) & 
+                    (board[i-1][j-1] != 0) & (board[i+1][j-1] != 0) & (board[i][j-1] != 0) & 
+                    (board[i-1][j+1] != 0) & (board[i+1][j+1] != 0) & (board[i][j+1] != 0)):
+                        holes += 1
+                elif(j == 0):
+                    if(board[i][j+1] != 0) & (board[i+1][j] != 0):
+                        holes += 3
+                    elif(board[i+1][j] != 0):
+                         holes += 3
+                    elif((board[i+1][j] == 0) & (board[i-1][j] == 0) & 
+                    (board[i-1][j+1] != 0) & (board[i+1][j+1] != 0) & (board[i][j+1] != 0)):
+                        holes += 1
+                elif(j == 9):
+                    if(board[i][j-1] != 0) & (board[i+1][j] != 0):
+                        holes += 3
+                    elif(board[i+1][j] != 0):
+                        holes += 3
+    return holes
+
 def findSpot(letter, board):# finds best spot for piece
     low = 20
     lowx = 0
     lowr = 0
-    startingHoles = findHoles(board)
+    maxy = max(getYs(board))
+    startingHoles = findHoles(board, maxy)
 
     for r in range(4): #checks all possible spots
         for x in range(0,10):
             holes = startingHoles
             temp = placePiece(letter, x, r, board, 2)
-            holes -= findHoles(board)
+            holes -= findHoles(board, maxy)
             holes = abs(holes)
             temp += holes
 
@@ -359,28 +367,29 @@ def initialize():
     startGame(Board)
     
     print(Board[::-1])
-     
+
 def startGame(board):
     i=0
     letter = ''
-    while i < 500:
-        if pyautogui.locateOnScreen('paused.png')!= None :
-            print("You paused me :(")
-            break
-        if pyautogui.locateOnScreen('game_over.png')!= None :
-            print("I Lost :(")
-            break
-        if letter != '':
-            newletter = locatePiece()
-            findSpot(letter,board)
-            i+=1
-            letter = newletter
-            print(board[::-1])
-        else:
+    while i < 3000:
+        if letter == 'E':
+            return
+        if letter == '':
             letter = locatePiece()
             if letter != '':
-                time.sleep(5)
+                time.sleep(2)
+            
+        else:
+            temp = locatePiece()
+            count = 0
+            while((letter == temp) & (count < 10)):
+                temp = locatePiece()
+                print(count)
+                count += 1
+            findSpot(letter,board)
+            i+=1
+            letter = temp
+            print(board[::-1])
 
 
 initialize()
-
