@@ -2,16 +2,16 @@ from contextlib import nullcontext
 from pyautogui import *
 import pyautogui
 import time
-from pynput.keyboard import Key, Controller
+#from pynput.keyboard import Key, Controller
 import random
 import win32api, win32con
 import numpy as np
-import cv2
+#import cv2
 import copy
 import time, threading, queue
 from multiprocessing.pool import ThreadPool
 pool = ThreadPool(processes=1)
-#RECORD 96 lines score 99528
+#RECORD 144 lines score 155098
 
 Held = ""
 Lines = 0
@@ -28,7 +28,24 @@ def press(x):# preses "x"
 
 def moveTo(rotate, x, letter):# rotates the piece and moves it assuming left most spot is 0
     duration = 0.0
-    
+    if(letter == "I") & (x == 9):
+        press('right')
+        press('right')
+        press('right')
+        press('up')
+        press('right')
+        press('space')
+        return
+    if(letter == "I") & (x == 0):
+        press('left')
+        press('left')
+        press('left')
+        press('up')
+        press('left')
+        press('left')
+        press('space')
+        return
+
     for i in range(rotate):
         press('up')
         #sleep(duration)
@@ -43,9 +60,9 @@ def moveTo(rotate, x, letter):# rotates the piece and moves it assuming left mos
     
     #sleep(duration)
     press('space')
-
+ 
 def locatePiece():# Returns the next piece
-    t0 = time.time()
+
     x,y = pyautogui.size()
     #if pyautogui.locateOnScreen('square.png', region=(1100,200,200,300), grayscale = True, confidence = 1)!= None:
     if pyautogui.locateOnScreen('I.png', region=(1100,430,200,100))!= None :
@@ -68,6 +85,59 @@ def locatePiece():# Returns the next piece
         return 'E'
     else:
         return locatePiece()
+
+def locatePieceFaster():
+    screen=pyscreeze.screenshot()
+    if(screen.getpixel((1206,500)) == (184,0,0)):
+        return "Z"
+    if(screen.getpixel((1224,492)) == (0,194,218)):
+        return "I"
+    if(screen.getpixel((1209,500)) == (0,119,190)):
+        return "J"
+    if(screen.getpixel((1220,504)) == (210, 190, 0)):
+        return "O"
+    if(screen.getpixel((1209,502)) == (168, 0, 203)):
+        return "T"
+    if(screen.getpixel((1209,501)) == (0, 197, 70)):
+        return "S"
+    if(screen.getpixel((1210,502)) == (203, 145, 0)):
+        return "L"
+    if pyautogui.locateOnScreen('paused.png', region=(850,500,200,100), grayscale = True)!= None :
+        return 'E'
+    elif pyautogui.locateOnScreen('game_over.png', region=(850,500,200,100), grayscale = True)!= None :
+        return 'E'
+    return locatePieceFaster() 
+  
+def getYs(board): #gets the heighest y that has a piece on it
+    maxy = [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1] 
+    for i in range(10):
+        for y in reversed(range(len(board))):
+            if(board[y][i] == 1):
+                maxy[i] = y
+                break
+    return maxy
+
+def checkBoard(Board):
+    check = np.zeros((20, 10))
+    screen=pyscreeze.screenshot()
+    x = 1070
+    y = 890
+    for j in range(10):
+        for i in (range(20)):
+            r, g, b=screen.getpixel((x - 25*j,y - 25*i))
+            if(r < 20) & (g < 20) & (b < 20):
+                check[i][j] = 0
+            else:
+                check[i][j] = 1
+    ys = getYs(Board)
+    maxY = max(ys)
+    for j in range(15,20):
+        for i in (range(10)):
+            if(check[j][i] == 1):
+                check[j][i] = 0
+    check = np.flip(check, 1)
+    replaceRow(check)
+    return (np.array_equal(Board, check), check)
 
 def replaceRow(board, c = 0):# if a row has all 1s then it deletes it and moves everything down
     temp = np.zeros(10)
@@ -92,15 +162,6 @@ def replaceRow(board, c = 0):# if a row has all 1s then it deletes it and moves 
         c += 1
         return 1 + replaceRow(board, c)
     return 0
-
-def getYs(board): #gets the heighest y that has a piece on it
-    maxy = [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1] 
-    for i in range(10):
-        for y in reversed(range(len(board))):
-            if(board[y][i] == 1):
-                maxy[i] = y
-                break
-    return maxy
 
 def placePiece(letter, x, rotation, board, new): #places piece of letter at x and rotation r with 'new' value and returns the y of highest piece placed
     
@@ -303,8 +364,11 @@ def placePiece(letter, x, rotation, board, new): #places piece of letter at x an
                             return y+1
     return 20
 
+digMode = False
 def findHoles(Board, maxy, miny, min19): #finds holes **wells and overhanging edges**
+    global digMode
     holes = 0
+    wells = 0
     holeWeight = 5
     wellWeight = 3
     board = copy.deepcopy(Board)
@@ -312,12 +376,14 @@ def findHoles(Board, maxy, miny, min19): #finds holes **wells and overhanging ed
     removed = replaceRow(board)
     if(removed >= 2) & (min19 > 4):
         return 0
-    if(removed >= 1) & (Lines > 90):
+    if(removed >= 1) & (Lines > 110):
         return 0
     if(miny < 0):
         miny = 0
+    if(maxy > 20):
+        maxy = 19
 
-    for i in range(miny, maxy + 4):
+    for i in range(0, maxy + 4):
         for j in range(len(board[i])):
             if(board[i][j] == 0):
                 if(j != 0) & (j != 9):
@@ -334,7 +400,7 @@ def findHoles(Board, maxy, miny, min19): #finds holes **wells and overhanging ed
                     elif((board[i+1][j] == 0) & (board[i-1][j] == 0) & (
                     ((board[i-1][j-1] != 0) & (board[i+1][j-1] != 0) & (board[i][j-1] != 0)) | 
                     ((board[i-1][j+1] != 0) & (board[i+1][j+1] != 0) & (board[i][j+1] != 0)))):
-                        holes += wellWeight
+                        wells += wellWeight
                 elif(j == 0):
                     if(board[i][j+1] != 0) & (board[i+1][j] != 0):
                         holes += holeWeight 
@@ -348,7 +414,8 @@ def findHoles(Board, maxy, miny, min19): #finds holes **wells and overhanging ed
                                 holes += 1
                     elif((board[i+1][j] == 0) & (board[i-1][j] == 0) & ( 
                     (board[i-1][j+1] != 0) & (board[i+1][j+1] != 0) & (board[i][j+1] != 0))):
-                        holes += wellWeight
+                        wells += wellWeight
+                
                 elif(j == 9):
                     if(board[i][j-1] != 0) & (board[i+1][j] != 0):
                         holes += holeWeight 
@@ -360,13 +427,25 @@ def findHoles(Board, maxy, miny, min19): #finds holes **wells and overhanging ed
                         for g in range(i, maxy + 4):
                             if(board[g][j] != 0):
                                 holes += 1
+                    elif((board[i+1][j] == 0) & (board[i-1][j] == 0) & (Lines > 90) & ( 
+                    (board[i-1][j-1] != 0) & (board[i+1][j-1] != 0) & (board[i][j-1] != 0))):
+                        wells += wellWeight
 
-    if(holes == 0) & (Lines < 90):
+    if(holes == 0) & (Lines < 110) & (not digMode):
+        if(removed > 1) & (removed != 4):
+            holes += 90
         for i in range(len(board)):
             if(board[i][9]!= 0):
                 holes += 3
 
-    return holes
+    if(holes == 0):
+        digMode = False
+    else:
+        digMode = True
+    
+        
+
+    return holes + wells
 
 def findSpotHelper(letter, board):
     low = 20
@@ -398,11 +477,11 @@ def findSpotHelper(letter, board):
             placePiece(letter, x, r, board, 0)
     return(low, lowx, lowr)
 
-def findSpot(letter,nextLetter, board):# finds best spot for piece
+def findSpot(letter, nextLetter, board):# finds best spot for piece
     global Held
     global Lines 
 
-    async_result = pool.apply_async(findSpotHelper, (letter, board)) # Use threading to speed up program
+    #async_result = pool.apply_async(findSpotHelper, (letter, board)) # Use threading to speed up program
 
     low1 = 100
  
@@ -411,7 +490,7 @@ def findSpot(letter,nextLetter, board):# finds best spot for piece
     else:
         low1, lowx1, lowr1 = findSpotHelper(Held, board)
 
-    low, lowx, lowr = async_result.get()
+    low, lowx, lowr = findSpotHelper(letter, board)
 
     if(low <= low1):
         placePiece(letter, lowx, lowr, board, 1)
@@ -422,10 +501,8 @@ def findSpot(letter,nextLetter, board):# finds best spot for piece
             placePiece(Held, lowx1, lowr1, board, 1)
             moveTo(lowr1, lowx1, Held)
         Held = letter
-
     Lines += replaceRow(board)
     
-
 def initialize():
     Board = np.zeros((20, 10))
     """
@@ -439,31 +516,46 @@ def initialize():
     Board[0] = [1, 1, 1, 1, 1, 1, 1, 1, 1,  1]
     #indSpot("L", "L", Board)
     """
+    
     startGame(Board)
+
+    
     print(Board[::-1])
     print(Lines)
 
 def startGame(board):
     i=0
+    c = 0
     letter = ''
-    while i < 3000:
+    times = []
+    while i < 5000:
+        t0 = time.time()
         if letter == 'E':
+            print("Average time per piece is: ")
+            print(sum(times)/len(times))
             return
         if letter == '':
-            letter = locatePiece()
+            letter = locatePieceFaster()
             if letter != '':
-                time.sleep(2)
-            
-        else:
-            temp = locatePiece()
-            if(letter == temp):
-                time.sleep(.5)
-                temp = locatePiece()
-
+                time.sleep(2)          
+        else:   
+            x, y = checkBoard(board)
+            if(not x):
+                if(c == 2):
+                    board = copy.copy(y)
+                c += 1
+            else:
+                c = 0
+            temp = locatePieceFaster()
+            count = 0
+            while(letter == temp) & (count <= 15):
+                temp = locatePieceFaster()
+                count += 1
             findSpot(letter,temp,board)
             i+=1
             letter = temp
-            #print(board[::-1])
-
-
+        times.append(time.time()-t0)
+    print("Average time per piece is: ")
+    print(sum(times)/len(times))
+    
 initialize()
